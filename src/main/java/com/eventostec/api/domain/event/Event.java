@@ -20,7 +20,8 @@ import java.util.UUID;
 @NoArgsConstructor
 public class Event {
 
-    @Id @GeneratedValue
+    @Id
+    @GeneratedValue
     private UUID id;
 
    private String title;
