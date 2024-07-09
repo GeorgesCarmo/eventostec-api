@@ -1,6 +1,11 @@
 package com.eventostec.api.service;
 
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.eventostec.api.domain.event.Event;
 import com.eventostec.api.domain.event.EventRequestDTO;
 import com.eventostec.api.repositories.EventRepository;
@@ -12,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
@@ -22,17 +28,16 @@ public class EventService {
     @Value("{aws.bucket.name}")
     private String bucketName;
 
-//    @Autowired
     private AmazonS3 s3Client;
 
     @Autowired
     private EventRepository eventRepository;
 
-    public Event createEvent(EventRequestDTO data){
+    public Event createEvent(EventRequestDTO data) throws IOException {
         String imgUrl = null;
 
         if (data.image() != null){
-            imgUrl = this.uploadImg(data.image());
+            imgUrl = this.uploadToS3(data.image().getInputStream(),data.image().getOriginalFilename());
         }
         Event newEvent = new Event();
         newEvent.setTitle(data.title());
@@ -64,5 +69,21 @@ public class EventService {
         fos.write(multipartFile.getBytes());
         fos.close();
         return convFile;
+    }
+
+    public String uploadToS3(InputStream inputStream, String fileName) throws IOException,
+            AmazonServiceException {
+
+        AmazonS3 s3Client = AmazonS3ClientBuilder.standard().withRegion(Regions.US_EAST_1).build();
+
+        ObjectMetadata objectMetadata = new ObjectMetadata();
+        objectMetadata.setContentType("image.jpeg");
+        objectMetadata.setContentLength(inputStream.available());
+
+        PutObjectRequest request = new PutObjectRequest("eventostec-bucket-imagens", fileName, inputStream ,objectMetadata);
+
+        s3Client.putObject(request);
+
+        return s3Client.getUrl("eventostec-bucket-imagens", fileName).toString();
     }
 }
